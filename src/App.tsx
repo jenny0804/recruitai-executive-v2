@@ -264,6 +264,20 @@ export default function App() {
     }
   };
 
+  const cleanMarkdown = (text: string) => {
+    return text
+      .replace(/\*\*\*(.*?)\*\*\*/g, '$1') // Bold italic
+      .replace(/\*\*(.*?)\*\*/g, '$1')    // Bold
+      .replace(/\*(.*?)\*/g, '$1')      // Italic
+      .replace(/__(.*?)__/g, '$1')      // Bold
+      .replace(/_(.*?)_/g, '$1')        // Italic
+      .replace(/^#+\s+/gm, '')          // Headers
+      .replace(/`{1,3}(.*?)`{1,3}/g, '$1') // Inline code and code blocks
+      .replace(/^\s*[-*+]\s+/gm, '• ')   // Unordered lists
+      .replace(/^\s*\d+\.\s+/gm, '')     // Ordered lists (remove numbers)
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1'); // Links
+  };
+
   const exportChatHistory = () => {
     if (messages.length <= 1) {
       alert("No hay historial de conversación para exportar");
@@ -284,7 +298,7 @@ export default function App() {
 
       const chatData = messages.map(msg => [
         msg.role === 'user' ? 'RECLUTADOR' : 'ASISTENTE AI',
-        msg.text,
+        cleanMarkdown(msg.text),
         msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       ]);
 
