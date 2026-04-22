@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   Send, 
   User, 
@@ -21,7 +21,8 @@ import {
   FileSearch,
   Download,
   ClipboardList,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message } from './types';
@@ -110,6 +111,15 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const clearChat = () => {
+    setMessages([{
+      id: '1',
+      role: 'model',
+      text: 'Hola, soy su asistente de reclutamiento. He analizado los CVs cargados. ¿En qué puedo ayudarle hoy?',
+      timestamp: new Date(),
+    }]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,48 +211,103 @@ export default function App() {
       return;
     }
 
-    const doc = new jsPDF();
-    
-    // Title
-    doc.setFontSize(18);
-    doc.setTextColor(15, 23, 42); // slate-900
-    doc.text('Cuadro Comparativo de Candidatos', 14, 22);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139); // slate-500
-    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 14, 30);
+    try {
+      const doc = new jsPDF();
+      
+      // Title
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text('Cuadro Comparativo de Candidatos', 14, 22);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 14, 30);
 
-    // Master Profile section
-    if (masterProfile) {
-      doc.setFontSize(12);
-      doc.setTextColor(15, 23, 42);
-      doc.text('Perfil Maestro:', 14, 40);
-      doc.setFontSize(9);
-      doc.setTextColor(71, 85, 105); // slate-600
-      const splitProfile = doc.splitTextToSize(masterProfile, 180);
-      doc.text(splitProfile, 14, 46);
+      let currentY = 40;
+
+      // Master Profile section
+      if (masterProfile) {
+        doc.setFontSize(12);
+        doc.setTextColor(15, 23, 42);
+        doc.text('Perfil Maestro:', 14, currentY);
+        currentY += 6;
+        doc.setFontSize(9);
+        doc.setTextColor(71, 85, 105); // slate-600
+        const splitProfile = doc.splitTextToSize(masterProfile, 180);
+        doc.text(splitProfile, 14, currentY);
+        currentY += (splitProfile.length * 5) + 10;
+      }
+
+      // Table
+      const tableData = scorecardData.map(item => [
+        item.nombre,
+        `${item.experiencia_años} años`,
+        item.habilidades_clave?.join(', ') || '',
+        `${item.match_porcentaje}%`,
+        item.observacion_breve
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Candidato', 'Exp.', 'Habilidades', 'Match', 'Observación']],
+        body: tableData,
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { top: 30 },
+        styles: { fontSize: 8, cellPadding: 3 }
+      });
+
+      doc.save(`analisis_reclutamiento_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      alert("Hubo un error al generar el PDF. Por favor intente de nuevo.");
+    }
+  };
+
+  const exportChatHistory = () => {
+    if (messages.length <= 1) {
+      alert("No hay historial de conversación para exportar");
+      return;
     }
 
-    // Table
-    const tableData = scorecardData.map(item => [
-      item.nombre,
-      `${item.experiencia_años} años`,
-      item.habilidades_clave?.join(', ') || '',
-      `${item.match_porcentaje}%`,
-      item.observacion_breve
-    ]);
+    try {
+      const doc = new jsPDF();
+      
+      // Title
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42); 
+      doc.text('Historial de Conversación - RecruitAI', 14, 22);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Generado el: ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}`, 14, 30);
 
-    (doc as any).autoTable({
-      startY: masterProfile ? 46 + (doc.splitTextToSize(masterProfile, 180).length * 4) + 10 : 40,
-      head: [['Candidato', 'Exp.', 'Habilidades', 'Match', 'Observación']],
-      body: tableData,
-      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      margin: { top: 30 },
-      styles: { fontSize: 8, cellPadding: 3 }
-    });
+      const chatData = messages.map(msg => [
+        msg.role === 'user' ? 'RECLUTADOR' : 'ASISTENTE AI',
+        msg.text,
+        msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      ]);
 
-    doc.save(`analisis_reclutamiento_${new Date().toISOString().split('T')[0]}.pdf`);
+      autoTable(doc, {
+        startY: 40,
+        head: [['Remitente', 'Mensaje', 'Hora']],
+        body: chatData,
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
+        columnStyles: {
+          0: { cellWidth: 30, fontStyle: 'bold' },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 20, halign: 'center' }
+        },
+        margin: { top: 35 }
+      });
+
+      doc.save(`chat_reclutamiento_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error("Error exporting chat:", error);
+      alert("Hubo un error al generar el PDF del chat.");
+    }
   };
 
   return (
@@ -505,6 +570,27 @@ export default function App() {
 
         {/* Right Side: Chatbot */}
         <div className="flex-1 flex flex-col bg-white">
+          <div className="p-3 border-b border-slate-100 bg-white flex items-center justify-between">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest px-3">Asistente AI</h2>
+            <div className="flex gap-2">
+              <button 
+                onClick={exportChatHistory}
+                className="flex items-center gap-1.5 px-3 py-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight"
+                title="Exportar Chat"
+              >
+                <Download size={12} />
+                Exportar Chat
+              </button>
+              <button 
+                onClick={clearChat}
+                className="flex items-center gap-1.5 px-3 py-1 text-slate-500 hover:text-red-500 hover:bg-red-50/50 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight"
+                title="Limpiar Chat"
+              >
+                <Trash2 size={12} />
+                Limpiar Chat
+              </button>
+            </div>
+          </div>
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
             <AnimatePresence initial={false}>
