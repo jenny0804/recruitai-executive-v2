@@ -22,7 +22,8 @@ import {
   Download,
   ClipboardList,
   ExternalLink,
-  Trash2
+  Trash2,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message } from './types';
@@ -324,6 +325,10 @@ export default function App() {
     }
   };
 
+  const openManual = () => {
+    window.open('/Documentacion/Manual_de_uso_RecruitAI_Executive_vAlfa1_0.pdf', '_blank');
+  };
+
   return (
     <div className="flex flex-col h-screen bg-[#F8F9FA] overflow-hidden">
       {/* Header */}
@@ -338,6 +343,13 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-4">
+          <button 
+            onClick={openManual}
+            className="flex items-center gap-2 px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-all text-xs font-semibold"
+          >
+            <HelpCircle size={16} />
+            Guía de Uso
+          </button>
           <div className="flex items-center gap-2 mr-4">
             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
               <img 
